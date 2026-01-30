@@ -1,0 +1,12 @@
+This software uses the following third-party libraries:
+
+1. Requests
+   License: Apache 2.0
+   Copyright: Kenneth Reitz
+
+2. Urllib3
+   License: MIT
+   Copyright: Andrey Petrov
+
+3. Python Standard Library (Tkinter, etc.)
+   License: PSF License
