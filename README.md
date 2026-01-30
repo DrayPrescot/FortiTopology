@@ -59,7 +59,7 @@ It connects to a **FortiGate** (directly) or a **FortiManager** (via API/Proxy),
 
 1.  **Start the application:**
     ```bash
-    python forti_mapper.py
+    python fortitopology.py
     ```
 
 2.  **Choose your mode:**
