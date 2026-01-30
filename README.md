@@ -16,15 +16,15 @@
 
 ## About
 
-**FortiTopology Mapper** is a Python-based utility with a graphical user interface (GUI) designed to automate the documentation of Fortinet networks. 
+**FortiTopology** is a Python-based utility with a graphical user interface (GUI) designed to automate the documentation of Fortinet networks. 
 
-It connects to a **FortiGate** (directly) or a **FortiManager** (via API/Proxy), retrieves connected devices (Switches, Access Points), and analyzes LLDP/CDP neighbors to generate a topology map. The output is a `.drawio` XML file that can be opened and edited directly in [Diagrams.net](https://app.diagrams.net/) (formerly Draw.io).
+It connects to a **FortiGate** or a **FortiManager**, retrieves connected devices (Switches, Access Points), and analyzes LLDP/CDP neighbors to generate a topology map. The output is a `.drawio` XML file that can be opened and edited directly in [Diagrams.net](https://app.diagrams.net/) (formerly Draw.io).
 
 ## Features
 
 * **Dual Connection Modes:**
     * **Direct Mode:** Connect directly to a single FortiGate.
-    * **FortiManager Mode:** Connect to FMG and select a specific FortiGate to map (uses JSON-RPC proxy).
+    * **FortiManager Mode:** Connect to FMG and select a specific FortiGate to map.
 * **Device Discovery:** Automatically detects:
     * FortiGates
     * FortiSwitches (Managed)
@@ -40,7 +40,7 @@ It connects to a **FortiGate** (directly) or a **FortiManager** (via API/Proxy),
 
 ### Prerequisites
 * Python 3.x installed
-* Network access to your FortiGate or FortiManager (HTTPS/443)
+* Network access to your FortiGate or FortiManager (HTTPS)
 
 ### Setup
 1.  **Clone the repository:**
