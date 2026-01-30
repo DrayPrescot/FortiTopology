@@ -46,7 +46,7 @@ It connects to a **FortiGate** or a **FortiManager**, retrieves connected device
 ### Setup
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/YOUR_USERNAME/FortiTopology.git](https://github.com/YOUR_USERNAME/FortiTopology.git)
+    git clone https://github.com/DrayPrescot/FortiTopology.git
     cd FortiTopology
     ```
 
