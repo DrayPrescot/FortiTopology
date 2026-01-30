@@ -41,6 +41,7 @@ It connects to a **FortiGate** or a **FortiManager**, retrieves connected device
 ### Prerequisites
 * Python 3.x installed
 * Network access to your FortiGate or FortiManager (HTTPS)
+* API User with Read Only access on FortiGate or FortiManager
 
 ### Setup
 1.  **Clone the repository:**
