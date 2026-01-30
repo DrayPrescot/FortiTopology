@@ -18,7 +18,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # --- GLOBALE VARIABLES ---
 CONNECTION_MODE = "DIRECT"  # 'DIRECT' or 'FMG'
 CURRENT_IP = ""             # IP Adress (Gate or FMG)
-CURRENT_PORT = "11443"      # Port (Gate or FMG)
+CURRENT_PORT = ""           # Port (Gate or FMG)
 CURRENT_TOKEN = ""          # API Token
 CURRENT_SESSION = ""        # Session
 SELECTED_DEVICE_DATA = {}   # List with Fortigate data
@@ -463,12 +463,10 @@ class FortiMapperApp:
         
         ttk.Label(frame_d, text="IP/DNS:").grid(row=0, column=0, sticky="w")
         self.entry_ip_d = ttk.Entry(frame_d, width=35)
-        self.entry_ip_d.insert(0, "192.168.1.99")
         self.entry_ip_d.grid(row=0, column=1, padx=5, pady=5)
 
         ttk.Label(frame_d, text="Port:").grid(row=1, column=0, sticky="w")
         self.entry_port_d = ttk.Entry(frame_d, width=35)
-        self.entry_port_d.insert(0, "11443")
         self.entry_port_d.grid(row=1, column=1, padx=5, pady=5)
 
         ttk.Label(frame_d, text="API Token:").grid(row=2, column=0, sticky="w")
@@ -481,12 +479,10 @@ class FortiMapperApp:
 
         ttk.Label(frame_f, text="IP/DNS:").grid(row=0, column=0, sticky="w")
         self.entry_ip_f = ttk.Entry(frame_f, width=35)
-        self.entry_ip_f.insert(0, "10.0.0.1")
         self.entry_ip_f.grid(row=0, column=1, padx=5, pady=5)
 
         ttk.Label(frame_f, text="Port:").grid(row=1, column=0, sticky="w")
         self.entry_port_f = ttk.Entry(frame_f, width=35)
-        self.entry_port_f.insert(0, "11443")
         self.entry_port_f.grid(row=1, column=1, padx=5, pady=5)
 
         ttk.Label(frame_f, text="API Token:").grid(row=2, column=0, sticky="w")
