@@ -36,6 +36,9 @@ It connects to a **FortiGate** or a **FortiManager**, retrieves connected device
 * **Export:** Generates ready-to-use `.drawio` files.
 * **User Friendly:** Simple GUI built with Tkinter.
 
+## Sample Output
+<img width="491" height="642" alt="image" src="https://github.com/user-attachments/assets/4716f90a-8eeb-423d-93b1-8ac18f12837d" />
+
 ## Installation
 
 ### Prerequisites
