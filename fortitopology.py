@@ -10,6 +10,7 @@ import urllib3
 import xml.etree.ElementTree as ET
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
+from collections import deque, defaultdict
 import threading
 
 # Surpress warnings
@@ -42,9 +43,6 @@ def clean_id(text):
 
 # JSON communication to FMG
 def fmg_json_rpc(method, url, payload=None):
-    """
-    Sendet einen JSON-RPC Request an den FortiManager.
-    """
 
     headers = {
         'Authorization': f'Bearer {CURRENT_TOKEN}',
@@ -85,6 +83,7 @@ def fmg_json_rpc(method, url, payload=None):
                 if status.get('code') == 0:
                     return result_obj.get('data')
                 else:
+                    log(f"{url}")
                     log(f"FMG RPC Error: {status.get('message')} (Code {status.get('code')})")
                     return None
             else:
@@ -229,8 +228,100 @@ def fetch_fmg_devices():
         log("No devices found.")
         return []
 
+def calculate_tiered_layout(devices, links, root_serial):
+    """
+    Calculates X, Y coordinates using BFS.
+    Key Change: Sorts devices based on their parent's X coordinate to avoid crossing lines.
+    """
+    # 1. Build Adjacency Graph (Undirected)
+    adj = defaultdict(list)
+    for link in links:
+        s, d = link['src'], link['dst']
+        adj[s].append(d)
+        adj[d].append(s)
+
+    # 2. Determine Levels (BFS) & Track Parents
+    levels = {}    # {serial: level_index}
+    parents = {}   # {serial: parent_serial}
+    
+    queue = deque([(root_serial, 0)])
+    visited = {root_serial}
+    
+    levels[root_serial] = 0
+    parents[root_serial] = None
+
+    while queue:
+        current_node, current_level = queue.popleft()
+        
+        # Get neighbors
+        for neighbor in adj.get(current_node, []):
+            if neighbor not in visited:
+                device_exists = any(d['serial'] == neighbor for d in devices)
+                if device_exists:
+                    visited.add(neighbor)
+                    levels[neighbor] = current_level + 1
+                    parents[neighbor] = current_node # Save who connected to us
+                    queue.append((neighbor, current_level + 1))
+
+    # 3. Handle Orphans (Devices not linked to root)
+    max_level = max(levels.values()) if levels else 0
+    orphan_level = max_level + 1
+    
+    for dev in devices:
+        if dev['serial'] not in levels:
+            levels[dev['serial']] = orphan_level
+            parents[dev['serial']] = None
+
+    # 4. Calculate Coordinates
+    layout_map = {} 
+    
+    # Group devices by level
+    level_groups = defaultdict(list)
+    for serial, lvl in levels.items():
+        level_groups[lvl].append(serial)
+
+    # --- CONFIGURATION ---
+    CANVAS_CENTER_X = 1500
+    ITEM_WIDTH = 250
+    LEVEL_HEIGHT = 200
+
+    # Process levels in order (0, 1, 2...) because children rely on parent positions
+    sorted_levels = sorted(level_groups.keys())
+
+    for lvl in sorted_levels:
+        serials = level_groups[lvl]
+        
+        # --- SMART SORTING ---
+        if lvl == 0:
+            # Root: no sorting needed
+            pass
+        else:
+            # Sort this layer based on the X position of their PARENT in the previous layer.
+            # If parents have same X (or same parent), tie-break with serial name.
+            def get_parent_x(device_serial):
+                parent_serial = parents.get(device_serial)
+                if parent_serial and parent_serial in layout_map:
+                    return layout_map[parent_serial]['x']
+                return 0 # Default for orphans or root
+
+            # Sort primarily by Parent X, secondarily by Device Serial
+            serials.sort(key=lambda s: (get_parent_x(s), s))
+
+        # --- PLACEMENT ---
+        count = len(serials)
+        total_width = count * ITEM_WIDTH
+        start_x = CANVAS_CENTER_X - (total_width / 2)
+        
+        y_pos = 50 + (lvl * LEVEL_HEIGHT)
+        
+        for i, serial in enumerate(serials):
+            x_pos = start_x + (i * ITEM_WIDTH)
+            layout_map[serial] = {'x': int(x_pos), 'y': int(y_pos)}
+
+    return layout_map
+
 # --- XML GENERATOR ---
-def create_drawio_xml(devices, links):
+def create_drawio_xml(devices, links, layout_map):
     mxfile = ET.Element('mxfile', host="Electron", agent="PythonScript", type="device")
     diagram = ET.SubElement(mxfile, 'diagram', id="diagram_1", name="FortiTopology")
     mxGraphModel = ET.SubElement(diagram, 'mxGraphModel', dx="1422", dy="794", grid="1", gridSize="10", guides="1", tooltips="1", connect="1", arrows="1", fold="1", page="1", pageScale="1", pageWidth="827", pageHeight="1169", math="0", shadow="0")
@@ -238,30 +329,43 @@ def create_drawio_xml(devices, links):
     ET.SubElement(root, 'mxCell', id="0")
     ET.SubElement(root, 'mxCell', id="1", parent="0")
 
-    y_gate, y_switch, y_ap = 50, 250, 450
-    x_sw, x_ap, spacing = 0, 0, 180
     existing_ids = set()
 
+    # --- CONFIGURATION FOR BOX SIZE ---
+    BOX_WIDTH = "160"
+    BOX_HEIGHT = "90"
+
+    # Create Devices
     for dev in devices:
+        serial = dev['serial']
         safe_id = clean_id(dev['id'])
         existing_ids.add(safe_id)
+        
+        coords = layout_map.get(serial, {'x': 0, 'y': 0})
+        x, y = coords['x'], coords['y']
+
+        # --- STYLE DEFINITIONS ---
+        # Default: Standard blueish box
         style = "rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#000000;"
+        
         if dev['type'] == 'fortigate':
+            # CHANGED: Use 'ngfw' (Next Gen Firewall) shape. This is a rectangular chassis, not a brick wall.
             style = "shape=mxgraph.cisco.firewalls.firewall;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontColor=#FF0000;"
-            x, y = 400, y_gate
+        
         elif dev['type'] == 'switch':
+            # KEEP: The L3 Switch shape is already a good square box.
             style = "shape=mxgraph.cisco.switches.layer_3_switch;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#0000FF;"
-            x, y = 100 + (x_sw * spacing), y_switch
-            x_sw += 1
+        
         elif dev['type'] == 'ap':
-            style = "shape=mxgraph.cisco.wireless.access_point;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;"
-            x, y = 100 + (x_ap * spacing), y_ap
-            x_ap += 1
+            # CHANGED: Use a standard Rounded Rectangle. 
+            # The specific Cisco AP icon is a circle/dish which is bad for text.
+            style = "rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;"
         
         cell = ET.SubElement(root, 'mxCell', id=safe_id, value=f"{dev['name']}\n{dev['serial']}", style=style, parent="1", vertex="1")
-        geo = ET.SubElement(cell, 'mxGeometry', x=str(x), y=str(y), width="80", height="60", attribute="geometry")
+        geo = ET.SubElement(cell, 'mxGeometry', x=str(x), y=str(y), width=BOX_WIDTH, height=BOX_HEIGHT, attribute="geometry")
         geo.set('as', 'geometry')
 
+    # Create Links
     unique_links = set() 
     for link in links:
         src = clean_id(link['src'])
@@ -275,7 +379,11 @@ def create_drawio_xml(devices, links):
             if link_signature not in unique_links:
                 unique_links.add(link_signature)
                 edge_id = f"edge_{src}_{dst}"
-                edge = ET.SubElement(root, 'mxCell', id=edge_id, value="", style="endArrow=none;html=1;rounded=0;", parent="1", source=src, target=dst, edge="1")
+                
+                # Straight lines
+                edge_style = "endArrow=none;html=1;rounded=0;"
+                
+                edge = ET.SubElement(root, 'mxCell', id=edge_id, value="", style=edge_style, parent="1", source=src, target=dst, edge="1")
                 geo_edge = ET.SubElement(edge, 'mxGeometry', relative="1")
                 geo_edge.set('as', 'geometry')
                 
@@ -286,7 +394,7 @@ def create_drawio_xml(devices, links):
 
                 if dst_label:
                     lbl_d = ET.SubElement(root, 'mxCell', id=f"lbl_dst_{edge_id}", value=dst_label, style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#666666;", parent=edge_id, vertex="1", connectable="0")
-                    geo_d = ET.SubElement(lbl_d, 'mxGeometry', x="0.8", y="0", relative="1")
+                    geo_d = ET.SubElement(lbl_d, 'mxGeometry', x="0.9", y="0", relative="1")
                     geo_d.set('as', 'geometry')
 
     return ET.tostring(mxfile, encoding='utf-8', method='xml')
@@ -425,7 +533,11 @@ def run_process_thread(on_finish_callback, custom_path=""):
         else:
             filename = f"topology_{fg_hostname}.drawio"
 
-        xml_content = create_drawio_xml(devices, links)
+        log("Calculating layout tiers...")
+        layout_map = calculate_tiered_layout(devices, links, fg_serial)
+        
+        xml_content = create_drawio_xml(devices, links, layout_map)
+
         with open(filename, "wb") as f:
             f.write(xml_content)
         
